@@ -1,11 +1,9 @@
-version: "3.7"
 name: mlops-project
 networks:
   mlops_network:
     driver: bridge
 volumes:
   mysql-data: null
-  mlflow-data: null
 services:
   mysql-db:
     build:
@@ -18,24 +16,24 @@ services:
       retries: 10
     ports:
       - "3306:3306"
-    #environment:
-    #  - MYSQL_DATABASE=mlops
-    env_file:
-      - '.secrets'
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
       - mlops_network
+    env_file:
+      - path: .env
 
   minio:
-    image: minio/minio:RELEASE.2023-08-29T23-07-35Z
+    image: minio/minio:RELEASE.2024-07-04T14-25-45Z
     container_name: s3
     ports:
       - "9000:9000"
       - "9001:9001"
-    command: server --console-address ":9001" /data
+    command: server /data --console-address ":9001"
     networks:
       - mlops_network
+    env_file:
+      - path: .env
 
   aws:
     image: amazon/aws-cli
@@ -43,20 +41,17 @@ services:
     command: -c "
             sleep 2
             && aws --endpoint-url http://minio:9000 s3 mb s3://my-bucket --region us-east-1
-            && aws --endpoint-url http://minio:9000 s3 mb s3://mlflow_bucket --region us-east-1
+            && aws --endpoint-url http://minio:9000 s3 mb s3://mlflow-bucket --region us-east-1
             && exit 0"
     entrypoint: [/bin/bash]
     volumes:
       - "./local_data:/aws"
-    env_file:
-      - '.secrets'
-    #environment:
-    #  AWS_ACCESS_KEY_ID: "minioadmin"
-    #  AWS_SECRET_ACCESS_KEY: "minioadmin"
     depends_on:
       - minio
     networks:
       - mlops_network
+    env_file:
+      - path: .env
 
   mage-ai:
     image: mageai/mageai:0.9.72
@@ -69,13 +64,13 @@ services:
       - my_project
     volumes:
       - ./mage_src:/home/src
-    env_file:
-      - '.secrets'
     depends_on:
       mysql-db:
         condition: service_healthy 
     networks:
       - mlops_network
+    env_file:
+      - path: .env
 
   mlflow:
     build:
@@ -88,15 +83,11 @@ services:
     ports:
       - 5001:5000 
     environment:
-      - MLFLOW_HOST=0.0.0.0
-      #- AWS_ACCESS_KEY_ID=minioadmin
-      #- AWS_SECRET_ACCESS_KEY=minioadmin
-      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
-      - MLFLOW_TRACKING_URI=http://minio:9000
-      - MLFLOW_ARTIFACT_UPLOAD_DOWNLOAD_TIMEOUT=600000
-    env_file:
-      - '.secrets'
-    command: mlflow server --backend-store-uri mysql+mysqlconnector://root:very_strong_password@mysql-db:3306/mlflow --default-artifact-root s3://mlflow_bucket/mlflow/ --host 0.0.0.0
+      MLFLOW_HOST: 0.0.0.0
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_TRACKING_URI: http://minio:9000
+      MLFLOW_ARTIFACT_UPLOAD_DOWNLOAD_TIMEOUT: 600000
+    command: mlflow server --backend-store-uri mysql+mysqlconnector://root:${MYSQL_ROOT_PASSWORD}@mysql-db:3306/mlflow --default-artifact-root s3://mlflow-bucket/mlflow/ --host 0.0.0.0
     depends_on:
       mysql-db:
         condition: service_healthy 
@@ -105,6 +96,8 @@ services:
       - ./mlflow/artifacts:/mlflow/artifacts
     networks:
       - mlops_network
+    env_file:
+      - path: .env
 
   jupyter:
     image: jupyter/minimal-notebook:latest
