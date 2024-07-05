@@ -71,6 +71,8 @@ services:
       - mlops_network
     env_file:
       - path: .env
+    environment:
+      MAGE_DATABASE_CONNECTION_URL: mysql+mysqlconnector://root:${MYSQL_ROOT_PASSWORD}@mysql-db:3306/mageai
 
   mlflow:
     build:

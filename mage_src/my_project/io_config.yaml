@@ -3,14 +3,14 @@ default:
   # Default profile created for data IO access.
   # Add your credentials for the source you use, and delete the rest.
   # AWS
-  AWS_ACCESS_KEY_ID: ""
-  AWS_SECRET_ACCESS_KEY: ""
+  AWS_ACCESS_KEY_ID: "{{ env_var('AWS_ACCESS_KEY_ID') }}"
+  AWS_SECRET_ACCESS_KEY: "{{ env_var('AWS_SECRET_ACCESS_KEY') }}"
   AWS_REGION: us-east-1
   AWS_ENDPOINT: http://minio:9000
   
   # MySQL
-  MYSQL_DATABASE: my_database
+  MYSQL_DATABASE: "{{ env_var('MSSQL_DATABASE') }}"
   MYSQL_HOST: mysql-db
-  MYSQL_PASSWORD: very_strong_password
+  MYSQL_PASSWORD: "{{ env_var('MYSQL_ROOT_PASSWORD') }}"
   MYSQL_PORT: 3306
   MYSQL_USER: root
